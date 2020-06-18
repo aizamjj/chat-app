@@ -16,11 +16,12 @@ io.on('connection', (socket) => {
         const { error, user } = addUser({ id: socket.id, name, room });
 
         if (error) return callback(error);
+        socket.join(user.room);
         //Admin emitted message from the backend to the client
         socket.emit('message', { user: 'admin', text: `${user.name}, welcome to the room ${user.room}`});
         socket.broadcast.to(user.room).emit('message', { user: 'admin', text: `${user.name} has joined!`});
 
-        socket.join(user.room);
+        io.to(user.room).emit('roomData', { room: user.room, users: getUsersInRoom(user.room) })
 
         callback();
     })
@@ -33,7 +34,12 @@ io.on('connection', (socket) => {
         callback();
     })
     socket.on('disconnect', () => {
-        console.log('User left');
+        const user = removeUser(socket.id);
+
+        if (user) {
+            io.to(user.room).emit('message', { user: 'admin', text: `${user.name} has left.`});
+            io.to(user.room).emit('roomData', { room: user.room, users: getUsersInRoom(user.room)});
+        }
     });
 });
 
